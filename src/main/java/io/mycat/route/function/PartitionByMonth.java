@@ -13,9 +13,9 @@ import java.util.List;
 
 /**
  * 例子 按月份列分区 ，每个自然月一个分片，格式 between操作解析的范例
- * 
+ *
  * @author wzh
- * 
+ *
  */
 public class PartitionByMonth extends AbstractPartitionAlgorithm implements
 		RuleAlgorithm {
@@ -25,7 +25,7 @@ public class PartitionByMonth extends AbstractPartitionAlgorithm implements
 	private String sEndDate;
 	private Calendar beginDate;
 	private Calendar endDate;
-	private int nPartition;
+	private int nPartition = 12;
 
 	private ThreadLocal<SimpleDateFormat> formatter;
 
@@ -44,14 +44,13 @@ public class PartitionByMonth extends AbstractPartitionAlgorithm implements
 			if(sEndDate!=null&&!sEndDate.equals("")) {
 				endDate = Calendar.getInstance();
 				endDate.setTime(new SimpleDateFormat(dateFormat).parse(sEndDate));
-				nPartition = ((endDate.get(Calendar.YEAR) - beginDate.get(Calendar.YEAR)) * 12
-								+ endDate.get(Calendar.MONTH) - beginDate.get(Calendar.MONTH)) + 1;
-
+				//nPartition = ((endDate.get(Calendar.YEAR) - beginDate.get(Calendar.YEAR)) * 12+ endDate.get(Calendar.MONTH) - beginDate.get(Calendar.MONTH)) + 1;
+				nPartition = 12;
 				if (nPartition <= 0) {
 					throw new java.lang.IllegalArgumentException("Incorrect time range for month partitioning!");
 				}
 			} else {
-				nPartition = -1;
+				nPartition = 12;
 			}
 		} catch (ParseException e) {
 			throw new java.lang.IllegalArgumentException(e);
@@ -59,22 +58,19 @@ public class PartitionByMonth extends AbstractPartitionAlgorithm implements
 	}
 
 	/**
-	 * For circulatory partition, calculated value of target partition needs to be
-	 * rotated to fit the partition range
+	 * 对于循环分区，需要旋转目标分区的计算值以适合分区范围
 	 */
 	private int reCalculatePartition(int targetPartition) {
 		/**
-		 * If target date is previous of start time of partition setting, shift
-		 * the delta range between target and start date to be positive value
+		 * 如果目标日期是分区设置开始时间的前一个时间点，则将目标和开始日期之间的增量范围移到正值
 		 */
 		if (targetPartition < 0) {
 			targetPartition = nPartition - (-targetPartition) % nPartition;
 		}
 
-		if (targetPartition >= nPartition) {
-			targetPartition =  targetPartition % nPartition;
-		}
-
+		//if (targetPartition >= nPartition) {
+		targetPartition =  targetPartition % nPartition;
+		//}
 		return targetPartition;
 	}
 
@@ -84,14 +80,11 @@ public class PartitionByMonth extends AbstractPartitionAlgorithm implements
 			int targetPartition;
 			Calendar curTime = Calendar.getInstance();
 			curTime.setTime(formatter.get().parse(columnValue));
-			targetPartition = ((curTime.get(Calendar.YEAR) - beginDate.get(Calendar.YEAR))
-					* 12 + curTime.get(Calendar.MONTH)
-					- beginDate.get(Calendar.MONTH));
-
+			targetPartition = ((curTime.get(Calendar.YEAR) - beginDate.get(Calendar.YEAR))* 12 + curTime.get(Calendar.MONTH)- beginDate.get(Calendar.MONTH));
 			/**
-			 * For circulatory partition, calculated value of target partition needs to be
-			 * rotated to fit the partition range
- 			 */
+			 * 对于循环分区，需要旋转目标分区的计算值以适合分区范围
+			 */
+			// 谢忠江修改了，按月分片的数据表，不在使用新的分片表，而是12个月循环，到第13个月就需要回到第1个月的数据表
 			if (nPartition > 0) {
 				targetPartition = reCalculatePartition(targetPartition);
 			}
@@ -109,12 +102,10 @@ public class PartitionByMonth extends AbstractPartitionAlgorithm implements
 			Calendar partitionTime = Calendar.getInstance();
 			SimpleDateFormat format = new SimpleDateFormat(dateFormat);
 			partitionTime.setTime(format.parse(beginValue));
-			startPartition = ((partitionTime.get(Calendar.YEAR) - beginDate.get(Calendar.YEAR)) * 12 + partitionTime.get(Calendar.MONTH) - beginDate.get(Calendar.MONTH));
+			startPartition = ((partitionTime.get(Calendar.YEAR) - beginDate.get(Calendar.YEAR))* 12 + partitionTime.get(Calendar.MONTH)- beginDate.get(Calendar.MONTH));
 			partitionTime.setTime(format.parse(endValue));
-			endPartition = ((partitionTime.get(Calendar.YEAR) - beginDate.get(Calendar.YEAR)) * 12 + partitionTime.get(Calendar.MONTH) - beginDate.get(Calendar.MONTH));
-
+			endPartition = ((partitionTime.get(Calendar.YEAR) - beginDate.get(Calendar.YEAR))* 12 + partitionTime.get(Calendar.MONTH)- beginDate.get(Calendar.MONTH));
 			List<Integer> list = new ArrayList<>();
-
 			while (startPartition <= endPartition) {
 				Integer nodeValue = reCalculatePartition(startPartition);
 				if (Collections.frequency(list, nodeValue) < 1)
@@ -128,11 +119,10 @@ public class PartitionByMonth extends AbstractPartitionAlgorithm implements
 			return new Integer[0];
 		}
 	}
-	
+
 	@Override
 	public int getPartitionNum() {
-		int nPartition = this.nPartition;
-		return nPartition;
+		return this.nPartition;
 	}
 
 	public void setsBeginDate(String sBeginDate) {

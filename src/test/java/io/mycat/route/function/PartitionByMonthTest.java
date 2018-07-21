@@ -44,8 +44,11 @@ public class PartitionByMonthTest {
 		Assert.assertEquals(true, 1 == partition.calculate("2014-02-28"));
 		Assert.assertEquals(true, 2 == partition.calculate("2014-03-1"));
 		Assert.assertEquals(true, 11 == partition.calculate("2014-12-31"));
-		Assert.assertEquals(true, 12 == partition.calculate("2015-01-31"));
-		Assert.assertEquals(true, 23 == partition.calculate("2015-12-31"));
+		// 谢忠江修改了，按月分片的数据表，不在使用新的分片表，而是12个月循环，到第13个月就需要回到第1个月的数据表
+//		Assert.assertEquals(true, 12 == partition.calculate("2015-01-31"));
+//		Assert.assertEquals(true, 23 == partition.calculate("2015-12-31"));
+		Assert.assertEquals(true, 0 == partition.calculate("2015-01-31"));
+		Assert.assertEquals(true, 11 == partition.calculate("2015-12-31"));
 
 		partition.setDateFormat("yyyy-MM-dd");
 		partition.setsBeginDate("2015-01-01");
