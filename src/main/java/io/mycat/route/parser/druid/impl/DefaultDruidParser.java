@@ -13,7 +13,9 @@ import io.mycat.route.parser.druid.DruidParser;
 import io.mycat.route.parser.druid.DruidShardingParseInfo;
 import io.mycat.route.parser.druid.MycatSchemaStatVisitor;
 import io.mycat.route.parser.druid.RouteCalculateUnit;
+import io.mycat.server.ServerConnection;
 import io.mycat.sqlengine.mpp.RangeValue;
+import io.mycat.util.ArrayUtil;
 import io.mycat.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,22 +74,6 @@ public class DefaultDruidParser implements DruidParser {
 		//通过Statement解析
 		statementParse(schema, rrs, stmt);
 
-        //检测ctx中的表是否在配置的逻辑库中存在，不存在的删除
-        if(ctx.getTables()!=null && ctx.getTables().size()>0
-				&& schema!=null && schema.getTables()!=null && schema.getTables().size()>0){
-            List<String> tables = new ArrayList<String>();
-            for(String table : ctx.getTables()){
-                if(schema.getTables().get(table.toUpperCase()) != null){
-                    tables.add(table.toUpperCase());
-                }
-            }
-            ctx.getTables().clear();
-            if(tables.size()>0){
-                for(String table : tables){
-                    ctx.addTable(table);
-                }
-            }
-        }
 	}
 	
 	/**
@@ -167,7 +153,10 @@ public class DefaultDruidParser implements DruidParser {
 		}
 		
 		if(visitor.getTables() != null) {
-			ctx.addTables(visitor.getTables());
+			String schema = visitor.getRepository().getDefaultSchemaName();
+			if(schema==null || !ArrayUtil.arraySearch(ServerConnection.mysqlSelfDbs,schema.toLowerCase())){
+				ctx.addTables(visitor.getTables());
+			}
 		}
 		ctx.setRouteCalculateUnits(this.buildRouteCalculateUnits(visitor, mergedConditionList));
 	}

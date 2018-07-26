@@ -28,12 +28,15 @@ import io.mycat.backend.BackendConnection;
 import io.mycat.backend.datasource.PhysicalDBNode;
 import io.mycat.backend.datasource.PhysicalDBPool;
 import io.mycat.backend.datasource.PhysicalDatasource;
+import io.mycat.cache.LayerCachePool;
 import io.mycat.config.ErrorCode;
 import io.mycat.config.model.SchemaConfig;
+import io.mycat.config.model.SystemConfig;
 import io.mycat.config.model.TableConfig;
 import io.mycat.net.FrontendConnection;
 import io.mycat.route.RouteResultset;
 import io.mycat.route.RouteResultsetNode;
+import io.mycat.route.factory.RouteStrategyFactory;
 import io.mycat.server.handler.MysqlInformationSchemaHandler;
 import io.mycat.server.handler.MysqlProcHandler;
 import io.mycat.server.parser.ServerParse;
@@ -55,7 +58,6 @@ import java.io.IOException;
 import java.nio.channels.NetworkChannel;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -88,7 +90,7 @@ public class ServerConnection extends FrontendConnection {
 	 */
 	private volatile boolean isLocked = false;
 
-	private final String[] mysqlSelfDbs = {"information_schema","mysql","performance_schema","sys"};
+	public static final String[] mysqlSelfDbs = {"information_schema","mysql","performance_schema","sys"};
 	
 	public ServerConnection(NetworkChannel channel)
 			throws IOException {
@@ -142,8 +144,7 @@ public class ServerConnection extends FrontendConnection {
 		}
 	}
 
-	public boolean isTxInterrupted()
-	{
+	public boolean isTxInterrupted() {
 		return txInterrupted;
 	}
 	public NonBlockingSession getSession2() {
@@ -197,8 +198,17 @@ public class ServerConnection extends FrontendConnection {
 		if(this.schema!=null){
 			SchemaConfig schemaConfig = MycatServer.getInstance().getConfig().getSchemas().get(this.schema);
 			if(schemaConfig!=null){
-				// 由于利用SDLJob执行有bug 所以采用以下方式
-				routeEndExecuteSQL(sql, type, schemaConfig); // 由于利用SDLJob执行有bug 所以采用这个方式。这个方式虽然逻辑上有问题 但是可以达到将sql发送给所有的mysql执行 后续再想办法优化
+				try {
+					LayerCachePool cachePool = (LayerCachePool) MycatServer.getInstance().getCacheService().getCachePool("TableID2DataNodeCache");
+					RouteResultset rrs = RouteStrategyFactory.getRouteStrategy().route(MycatServer.getInstance().getConfig().getSystem(), schemaConfig, type, sql, this.charset,
+							this, cachePool);
+					session.execute(rrs, rrs.isSelectForUpdate() ? ServerParse.UPDATE:type);
+				}catch (Exception e){
+					StringBuilder s = new StringBuilder();
+					LOGGER.warn(s.append(this).append(sql).toString() + " err:" + e.toString(),e);
+					String msg = e.getMessage();
+					writeErrMessage(ErrorCode.ER_PARSE_ERROR, msg == null ? e.getClass().getSimpleName() : msg);
+				}
 				return;
 			}
 		}
@@ -263,15 +273,6 @@ public class ServerConnection extends FrontendConnection {
             // show create table `表名`;
             // SHOW DATABASES;
             // 等
-//            schema = SchemaUtil.detectDefaultDb(sql, type);
-//            if(schema != null){
-//                schemaConfig = schemaConfigMap.get(schema);
-//                if(schemaConfig!=null){
-//                    routeEndExecuteSQL(sql, type, schemaConfig);
-//                    return;
-//                }
-//            }
-//            MysqlInformationSchemaHandler.handle(sql, this);
 			doDBSelfTableOpt(sql, type);
             return;
         }
@@ -317,7 +318,6 @@ public class ServerConnection extends FrontendConnection {
 					// UNION SELECT COUNT(*)
 					// FROM information_schema.ROUTINES
 					// WHERE ROUTINE_SCHEMA = '数据库名'
-//            		MysqlInformationSchemaHandler.handle(sql, this);
 					doDBSelfTableOpt(sql, type);
                     return;
                 }else{
