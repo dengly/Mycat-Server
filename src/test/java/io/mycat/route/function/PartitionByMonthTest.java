@@ -2,8 +2,8 @@
  * Copyright (c) 2013, OpenCloudDB/MyCAT and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
- * This code is free software;Designed and Developed mainly by many Chinese 
- * opensource volunteers. you can redistribute it and/or modify it under the 
+ * This code is free software;Designed and Developed mainly by many Chinese
+ * opensource volunteers. you can redistribute it and/or modify it under the
  * terms of the GNU General Public License version 2 only, as published by the
  * Free Software Foundation.
  *
@@ -16,8 +16,8 @@
  * You should have received a copy of the GNU General Public License version
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
- * 
- * Any questions about this component can be directed to it's project Web address 
+ *
+ * Any questions about this component can be directed to it's project Web address
  * https://code.google.com/p/opencloudb/.
  *
  */
@@ -99,21 +99,25 @@ public class PartitionByMonthTest {
 		// 场景1：无开始/结束时间，节点数量必须是12个，从1月~12月
 		PartitionByMonth partition = new PartitionByMonth();
 		partition.setDateFormat("yyyy-MM-dd");
-        partition.setsBeginDate("2013-01-01");
-        partition.setsEndDate("2013-12-01");
+		partition.setsBeginDate("2013-01-01");
+		partition.setsEndDate("2013-12-01");
 		partition.init();
+		Assert.assertEquals(
+				Arrays.toString(new Integer[]{0,1,2,3}),
+				Arrays.toString(partition.calculateRange("2014-01-01", "2014-04-03"))
+		);
+		Assert.assertEquals(
+				Arrays.toString(new Integer[]{0,1,2,3,4,5,6,7,8,9,10,11}),
+				Arrays.toString(partition.calculateRange("2013-01-01", "2014-04-03"))
+		);
+		Assert.assertEquals(
+				Arrays.toString(new Integer[0]),
+				Arrays.toString(partition.calculateRange("2015-01-01", "2014-04-03"))
+		);
 
 		PartitionByMonth scene = new PartitionByMonth();
 		scene.setDateFormat("yyyy-MM-dd");
 		scene.init();
-		Assert.assertEquals(
-				Arrays.toString(partition.calculateRange("2014-01-01", "2014-04-03")),
-				Arrays.toString(scene.calculateRange("2014-01-01", "2014-04-03"))
-		);
-		Assert.assertEquals(
-				Arrays.toString(partition.calculateRange("2013-01-01", "2014-04-03")),
-				Arrays.toString(scene.calculateRange("2013-01-01", "2014-04-03"))
-		);
 		Assert.assertEquals(
 				// []
 				Arrays.toString(partition.calculateRange("2015-01-01", "2014-04-03")),
