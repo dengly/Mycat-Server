@@ -115,13 +115,19 @@ public class PartitionByMonthTest {
 				Arrays.toString(partition.calculateRange("2015-01-01", "2014-04-03"))
 		);
 
+		partition.setsBeginDate("2013-04-01");
+		partition.setsEndDate("2013-12-01");
+		partition.init();
+		Assert.assertEquals(
+				Arrays.toString(new Integer[]{9,10,11,0}),
+				Arrays.toString(partition.calculateRange("2014-01-01", "2014-04-03"))
+		);
+
 		PartitionByMonth scene = new PartitionByMonth();
 		scene.setDateFormat("yyyy-MM-dd");
 		scene.init();
 		Assert.assertEquals(
-				// []
-				Arrays.toString(partition.calculateRange("2015-01-01", "2014-04-03")),
-				// []
+				Arrays.toString(new Integer[0]),
 				Arrays.toString(scene.calculateRange("2015-01-01", "2014-04-03"))
 		);
 	}
